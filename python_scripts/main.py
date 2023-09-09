@@ -149,6 +149,41 @@ def euclidean_distance(q1, q2):
     distance = math.sqrt((q1[0]-q2[0])**2 + (q1[1]-q2[1])**2)
     return distance
 
+def twist_feedback_linearization(x, y, yaw, xd, yd, dot_x, dot_y, gain, d=0.1):
+    """Return the twist of the robot using feedback linearization.
+
+    Args:
+        x (float): the current x position.
+        y (float): the current y position.
+        yaw (float): the current yaw of the robot.
+        xd (float): the desired x position.
+        yd (float): the desired y position.
+        dot_x (float): the desired x velocity.
+        dot_y (float): the desired y velocity.
+        gain (float): the feedback linearization gain.
+        d (float, optional): the distance from the robot center to a point on the robot. Defaults to 0.1.
+
+    Returns:
+        np array: the robot twist.
+    """
+
+    # Transform linear and angular velocity (twist) to 
+    # x- and y- velocities
+    T = np.array([[math.cos(yaw), (-d) * math.sin(yaw)],
+                    [math.sin(yaw), d * math.cos(yaw)]])
+
+    # Use the inverse to get the opposite: get twist from linear and angular velocities
+    T_inv = np.linalg.inv(T)
+
+    # Control inputs are the x- and y- desired velocities to goal configuration
+    u = np.array([[dot_x + gain*(xd - x)],
+                    [dot_y + gain*(yd - y)]])
+
+    # Transform from x- and y-velocities to twist
+    twist = np.matmul(T_inv, u)
+
+    return (twist)  
+
 def main():
     # Sampling time [seconds]
     sampling_time = 0.005
@@ -157,7 +192,7 @@ def main():
     init_value = 0.0
     # Circular trajectory: 360
     # Lemniscate: 360
-    last_value = 120        
+    last_value = 360        
     print("Generating trajectory variable to use in the trajectory parametric equation...")
     trajectory_variable = np.arange(init_value,last_value,sampling_time)       
     x_trajectory = np.array([])
@@ -313,10 +348,40 @@ def main():
         ## Check if desired euclidean distance was reached
         if euclidean_distance(current_configuration, goal_configuration) < desired_euclidean_error:
             print("Initial position reached.")
-            print("Trajectory tracking started.")
+            
+            sim.setJointTargetVelocity(right_motor_handle, 0.0)
+            sim.setJointTargetVelocity(left_motor_handle, 0.0)   
             
             break
         
+    control_gain = 5.0
+    
+    # Track the trajectory
+    for i in range(len(x_trajectory)):
+        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
+        robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
+        
+        current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
+        goal_configuration = np.array([x_trajectory[i], y_trajectory[i], 0])
+        
+        twist = twist_feedback_linearization(
+            current_configuration[0], current_configuration[1], current_configuration[2],
+            x_trajectory[i], y_trajectory[i],
+            xdot_trajectory[i], ydot_trajectory[i],
+            control_gain)
+        
+        wheel_velocities = twist_to_wheel_velocities(twist)
+        
+        sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
+        sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])    
+        
+        print(f"Trajectory step: {i}, total: {len(x_trajectory)}")
+        
+        client.step() 
+            
+    sim.setJointTargetVelocity(right_motor_handle, 0.0)
+    sim.setJointTargetVelocity(left_motor_handle, 0.0) 
+    
     sim.stopSimulation()
         
 
