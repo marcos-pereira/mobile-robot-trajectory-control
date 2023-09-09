@@ -15,6 +15,7 @@ cd folder/where/coppeliasim/is
 cd python-scripts
 python3 main.py
 ```
+6. The robot should follow a circle trajectory. Check the main.py to choose another trajectory.
 
 # Installing Zmq Interface for CoppeliaSim and Python
 Follow the instructions on [this link](https://github.com/CoppeliaRobotics/zmqRemoteApi/tree/master/clients/python).
