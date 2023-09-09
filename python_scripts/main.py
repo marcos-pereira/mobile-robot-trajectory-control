@@ -3,6 +3,8 @@
 import numpy as np
 import math 
 
+from coppeliasim_zmqremoteapi_client import *
+
 def main():
     # Sampling time [seconds]
     sampling_time = 0.005
@@ -11,7 +13,7 @@ def main():
     init_value = 0.0
     # Circular trajectory: 360
     # Lemniscate: 360
-    last_value = 360        
+    last_value = 120        
     print("Generating trajectory variable to use in the trajectory parametric equation...")
     trajectory_variable = np.arange(init_value,last_value,sampling_time)       
     x_trajectory = np.array([])
@@ -104,6 +106,18 @@ def main():
         y_dot = omega*(a-b)*(np.cos(omega_t)-np.cos(omega_t*(a/b -1)))
         xdot_trajectory = np.append(xdot_trajectory,x_dot)
         ydot_trajectory = np.append(ydot_trajectory,y_dot)
+        
+    # create a client to connect to zmqRemoteApi server:
+    # (creation arguments can specify different host/port,
+    # defaults are host='localhost', port=23000)
+    client = RemoteAPIClient()
+    
+    # get a remote object:
+    sim = client.getObject('sim')
+    
+    client.setStepping(True)
+    
+    sim.startSimulation()
 
 if __name__ == '__main__':
     main()
