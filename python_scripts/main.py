@@ -62,6 +62,93 @@ def twist_to_wheel_velocities(twist, wheel_radius=0.195/2.0, l_shaft=0.33):
 
     return (angular_wheel_velocities)
 
+def goal_angle(init_config, goal_config):
+    """Return the angle between the init config (x, y, phi) and the goal config
+    (x_goal, y_goal, phi_goal) about the z-axis.
+
+    Args:
+        init_config (_type_): the initial configuration.
+        goal_config (_type_): the goal configuration.
+
+    Returns:
+        _type_: the angle about the z-axis to the goal configuration.
+    """
+    delta_x = goal_config[0]-init_config[0]
+    delta_y = goal_config[1]-init_config[1]
+    goal_angle = np.arctan2(delta_y,delta_x)
+    return goal_angle
+
+def get_twist(yaw, xd_vel, yd_vel, d=0.12):
+    """Return the robot twist.
+
+    Args:
+        yaw (_type_): the robot current yaw angle.
+        xd_vel (_type_): the desired x-velocity.
+        yd_vel (_type_): the desired y-velocity.
+        d (float, optional): the distance from the robot center to a point on the robot. Defaults to 0.12.
+
+    Returns:
+        np array: the robot twist.
+    """
+
+    # Transform linear and angular velocity (twist) to 
+    # x- and y- velocities
+    T = np.array([[math.cos(yaw), (-d) * math.sin(yaw)],
+                    [math.sin(yaw), d * math.cos(yaw)]])
+
+    # Use the inverse to get the opposite: get twist from linear and angular velocities
+    T_inv = np.linalg.inv(T)
+
+    # Control inputs are the x- and y- desired velocities to goal configuration
+    u = np.array([[xd_vel],
+                    [yd_vel]])
+
+    # Transform from x- and y-velocities to twist
+    twist = np.matmul(T_inv, u)
+
+    return (twist)  
+
+def get_wheel_velocities(phi, dot_x, dot_y, wheel_radius=0.195/2.0, l_shaft=0.33):
+    """Calculate the robot wheel velocities using nonholonomic constraint jacobian inverse.
+
+    Args:
+        phi (float): the robot rotation about the z-axis
+        dot_x (float): the desired x-velocity.
+        dot_y (float): the desired y-velocity.
+        wheel_radius (_type_, optional): the wheel radius. Defaults to 0.195/2.0.
+        l_shaft (float, optional): the length of the shaft between wheels. Defaults to 0.33.
+
+    Returns:
+        _type_: _description_
+    """
+    # Get linear and angular velocities (twist) from the desired
+    # x- and y- velocities and angle to align with desired configuration
+    twist = get_twist(phi, dot_x, dot_y)
+
+    # Transform wheel velocities to twist 
+    T_wheel_to_twist = np.array([[1.0/2.0, 1.0/2.0], [1.0/l_shaft, -1.0/l_shaft]])
+
+    # Convert from twist to wheel velocities
+    wheel_velocities = np.matmul(np.linalg.inv(T_wheel_to_twist), twist)
+    
+    # Convert from linear velocity to angular velocity
+    angular_wheel_velocities = wheel_velocities/wheel_radius
+
+    return (angular_wheel_velocities)
+
+def euclidean_distance(q1, q2):
+    """Return the euclidean distance between configurations q1 (x1, y1, phi1) and q2 (x2, z2, phi2).
+
+    Args:
+        q1 (_type_): the first configuration.
+        q2 (_type_): the second configuration.
+
+    Returns:
+        float: the euclidean distance.
+    """
+    distance = math.sqrt((q1[0]-q2[0])**2 + (q1[1]-q2[1])**2)
+    return distance
+
 def main():
     # Sampling time [seconds]
     sampling_time = 0.005
@@ -176,15 +263,16 @@ def main():
     right_motor_handle = sim.getObject("/Pioneer_p3dx_rightMotor")
     left_motor_handle = sim.getObject("/Pioneer_p3dx_leftMotor")
     
+    # Align robot with trajectory initial position
     while True:
-        robot_pose = sim.getObjectPosition(robot_handle, sim.handle_world)
+        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
         robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
         
         (twist_to_align, aligned) = align_with_goal(
             x_trajectory[0], 
             y_trajectory[0], 
-            robot_pose[0], 
-            robot_pose[1], 
+            robot_position[0], 
+            robot_position[1], 
             robot_orientation[2], 
             desired_alignment_error)
         
@@ -196,6 +284,37 @@ def main():
         client.step()
         
         if aligned is True:
+            break
+        
+    desired_euclidean_error = 0.1
+    
+    # Go to trajectory inital position
+    while True:
+        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
+        robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
+        
+        current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
+        goal_configuration = np.array([x_trajectory[0], y_trajectory[0], 0])
+        
+        angle_to_goal = goal_angle(current_configuration, goal_configuration)   
+        
+        dot_x = math.cos(angle_to_goal)
+        dot_y = math.sin(angle_to_goal)
+        wheel_velocities = get_wheel_velocities(robot_orientation[2], dot_x, dot_y)  
+        
+        sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
+        sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])     
+        
+        print("Eucliden distance to goal")
+        print(euclidean_distance(current_configuration, goal_configuration))
+        
+        client.step()
+
+        ## Check if desired euclidean distance was reached
+        if euclidean_distance(current_configuration, goal_configuration) < desired_euclidean_error:
+            print("Initial position reached.")
+            print("Trajectory tracking started.")
+            
             break
         
     sim.stopSimulation()
