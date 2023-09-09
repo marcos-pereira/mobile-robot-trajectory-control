@@ -192,7 +192,7 @@ def main():
     init_value = 0.0
     # Circular trajectory: 360
     # Lemniscate: 360
-    last_value = 360        
+    last_value = 120        
     print("Generating trajectory variable to use in the trajectory parametric equation...")
     trajectory_variable = np.arange(init_value,last_value,sampling_time)       
     x_trajectory = np.array([])
@@ -270,7 +270,7 @@ def main():
         b = 0.5
         # no video: 90
         # video: 180
-        curve_period = 180
+        curve_period = 40
         omega = 2*math.pi/curve_period
 
         # # x-translation and y-translation
@@ -354,7 +354,9 @@ def main():
             
             break
         
-    control_gain = 5.0
+    control_gain = 20.0
+    
+    trajectory_reference_handle = sim.getObject("/Sphere")
     
     # Track the trajectory
     for i in range(len(x_trajectory)):
@@ -374,6 +376,7 @@ def main():
         
         sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
         sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])    
+        sim.setObjectPosition(trajectory_reference_handle, sim.handle_world, (x_trajectory[i], y_trajectory[i], robot_position[2]))
         
         print(f"Trajectory step: {i}, total: {len(x_trajectory)}")
         
