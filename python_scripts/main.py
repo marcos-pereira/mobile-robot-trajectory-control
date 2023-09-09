@@ -1,3 +1,13 @@
+#   This code is distributed WITHOUT ANY WARRANTY, without the implied
+#   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU Lesser General Public License for more details.
+#   
+#   The license is distributed along with this repository or you can check
+#   <http://www.gnu.org/licenses/> for more details.
+#
+# Contributors: 
+# marcos-pereira (https://github.com/marcos-pereira)
+
 #!/usr/bin/env python
 
 import numpy as np
@@ -192,7 +202,7 @@ def main():
     init_value = 0.0
     # Circular trajectory: 360
     # Lemniscate: 360
-    last_value = 120        
+    last_value = 60        
     print("Generating trajectory variable to use in the trajectory parametric equation...")
     trajectory_variable = np.arange(init_value,last_value,sampling_time)       
     x_trajectory = np.array([])
@@ -207,7 +217,7 @@ def main():
         t_var = trajectory_variable[trajectory_step]
 
         ####################################
-        # # Lemniscate trajectory
+        # Lemniscate trajectory
         # # # Half lemniscate size
         # a = 1.0
         # # no video: 60
@@ -265,7 +275,7 @@ def main():
         # ydot_trajectory = np.append(ydot_trajectory,y_dot)
 
         ####################################
-        # # Hypocycloid: with the parameters below it will be a tricuspoid
+        # Hypocycloid: with the parameters below it will be a tricuspoid
         # a = 1.5
         # b = 0.5
         # # no video: 90
