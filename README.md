@@ -1,6 +1,8 @@
 # mobile-robot-trajectory-control
 Trajectory control for a mobile robot in CoppeliaSim.
 
+[![Watch the video](https://img.youtube.com/vi/HflQXuMurJk/maxresdefault.jpg)](https://www.youtube.com/watch?v=HflQXuMurJk)
+
 # How to run the code
 1. Download [CoppeliaSim](https://www.coppeliarobotics.com/).
 2. If you are on Linux, go the folder where you extracted then run it:
