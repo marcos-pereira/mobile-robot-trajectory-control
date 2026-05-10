@@ -12,8 +12,11 @@
 
 import numpy as np
 import math 
+import sys
 
 from coppeliasim_zmqremoteapi_client import *
+
+from YamlDatafile import YamlDatafile
 
 def align_with_goal(xd, yd, xm, ym, theta_m, desired_error):
     """Return the twist to apply to robot such that it aligns with the 
@@ -195,14 +198,31 @@ def twist_feedback_linearization(x, y, yaw, xd, yd, dot_x, dot_y, gain, d=0.1):
     return (twist)  
 
 def main():
+    
+    # Print help 
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <parameters_file_name.yaml>")
+        sys.exit(1)
+    
+    parameters_file_name = sys.argv[1]    
+    parameters_yaml = YamlDatafile.get_all_parameters_from_yaml_file(
+            parameters_file_name
+        )
+
+    parameters = dict()
+
+    for parameter_name in parameters_yaml:
+        value = parameters_yaml[parameter_name]["value"]       
+        parameters[parameter_name] = value
+    
     # Sampling time [seconds]
-    sampling_time = 0.005
+    sampling_time = parameters["sampling_time"]
     
     # Create trajectory variable
-    init_value = 0.0
+    init_value = parameters["init_value"]
     # Circular trajectory: 360
     # Lemniscate: 360
-    last_value = 60        
+    last_value = parameters["last_value"]
     print("Generating trajectory variable to use in the trajectory parametric equation...")
     trajectory_variable = np.arange(init_value,last_value,sampling_time)       
     x_trajectory = np.array([])
@@ -240,10 +260,10 @@ def main():
 
         ####################################
         # Circular trajectory
-        circle_radius = 1.5 # meters
+        circle_radius = parameters["circle_radius"]
         # no video: 60.0
         # video: 180.0
-        circle_period = 30.0 # seconds
+        circle_period = parameters["circle_period"]
         omega = 2*np.pi/circle_period
         x = circle_radius*np.cos(omega*t_var)
         y = circle_radius*np.sin(omega*t_var)
@@ -302,7 +322,7 @@ def main():
     
     sim.startSimulation()
     
-    desired_alignment_error = 0.01
+    desired_alignment_error = parameters["desired_alignment_error"]
     
     robot_handle = sim.getObject("/Pioneer_p3dx_connection4")
     right_motor_handle = sim.getObject("/Pioneer_p3dx_rightMotor")
@@ -331,7 +351,7 @@ def main():
         if aligned is True:
             break
         
-    desired_euclidean_error = 0.1
+    desired_euclidean_error = parameters["desired_euclidean_error"]
     
     # Go to trajectory inital position
     while True:
@@ -364,7 +384,7 @@ def main():
             
             break
         
-    control_gain = 1.0
+    control_gain = parameters["control_gain"]
     
     trajectory_reference_handle = sim.getObject("/Sphere")
     
