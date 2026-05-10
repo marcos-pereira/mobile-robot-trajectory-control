@@ -4,26 +4,31 @@ Trajectory control for a mobile robot in CoppeliaSim.
 # How to run the code
 1. Download [CoppeliaSim](https://www.coppeliarobotics.com/).
 2. If you are on Linux, go the folder where you extracted then run it:
-```
+```bash
 cd folder/where/coppeliasim/is
 ./coppeliaSim.sh
 ``` 
-3. From CoppeliaSim, open the simulation scene pioneer_p3dx.ttt that is located in this repository.
-4. Install the Zmq Interface for CoppeliaSim in Python (see instructions below).
-5. Run the main.py script:
-```
+1. From CoppeliaSim, open the simulation scene [pioneer_p3dx.ttt](pioneer_p3dx.ttt) that is located in this repository.
+2. Install the Zmq Interface for CoppeliaSim in Python (see instructions below).
+3. Run the main.py script:
+```bash
 cd python-scripts
-python3 main.py
+python3 main.py parameters1.yaml
 ```
-6. The robot should follow a circle trajectory. Check the main.py to choose another trajectory.
+1. The robot should follow a circle trajectory. Check the [parameters1.yaml](python_scripts/parameters1.yaml) to choose another trajectory.
+
+# Installing with requirements.txt
+```bash
+python3 -m pip install -r requirements.txt
+```
 
 # Installing Zmq Interface for CoppeliaSim and Python
 Follow the instructions on [this link](https://github.com/CoppeliaRobotics/zmqRemoteApi/tree/master/clients/python).
-```
+```bash
 python3 -m pip install coppeliasim-zmqremoteapi-client
 ```
 Simple example of using the zmq interface to start the simulation:
-```
+```bash
 client = RemoteAPIClient()
     
 sim = client.getObject('sim')
