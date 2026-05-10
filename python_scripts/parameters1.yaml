@@ -31,3 +31,7 @@ desired_euclidean_error:
 # Control gain for the trajectory tracking control law
 control_gain:
   value: 1.0
+
+# Trajectory type: "circle", "lemniscate", "epicycloid", "hypocycloid"
+trajectory_type:
+  value: "circle"
