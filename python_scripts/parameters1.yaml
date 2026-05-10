@@ -1,0 +1,33 @@
+sampling_time:
+  value: 0.005
+
+# Trajectory arange parameters: 
+# This parameter is used to generate the time vector for the trajectory. 
+# It is the step size of the time vector.
+init_value:
+  value: 0.0
+
+# This parameter is used to generate the time vector for the trajectory. 
+# It is the final time of the trajectory.
+last_value:
+  value: 60
+
+# Circular trajectory radius [m]
+circle_radius:
+  value: 1.5
+
+# Circle period [s]
+circle_period:
+  value: 30.0
+
+# Desired error for the alignment with the goal [rad]
+desired_alignment_error:
+  value: 0.01
+
+# Desired Euclidean error for the trajectory regulation
+desired_euclidean_error:
+  value: 0.1
+
+# Control gain for the trajectory tracking control law
+control_gain:
+  value: 1.0
