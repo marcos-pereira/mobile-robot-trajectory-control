@@ -1,0 +1,74 @@
+#   This code is distributed WITHOUT ANY WARRANTY, without the implied
+#   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU Lesser General Public License for more details.
+#   
+#   The license is distributed along with this repository or you can check
+#   <http://www.gnu.org/licenses/> for more details.
+#
+# Contributors: 
+# marcos-pereira (https://github.com/marcos-pereira)
+
+sampling_time:
+  value: 0.005
+
+# Trajectory arange parameters: 
+# This parameter is used to generate the time vector for the trajectory. 
+# It is the step size of the time vector.
+init_value:
+  value: 0.0
+
+# This parameter is used to generate the time vector for the trajectory. 
+# It is the final time of the trajectory.
+last_value:
+  value: 60
+
+# Circular trajectory radius [m]
+circle_radius:
+  value: 1.5
+
+# Circle period [s]
+circle_period:
+  value: 30.0
+
+# Desired error for the alignment with the goal [rad]
+desired_alignment_error:
+  value: 0.01
+
+# Desired Euclidean error for the trajectory regulation
+desired_euclidean_error:
+  value: 0.1
+
+# Control gain for the trajectory tracking control law
+control_gain:
+  value: 1.0
+
+# Trajectory type: "circle", "lemniscate", "epicycloid", "hypocycloid"
+trajectory_type:
+  value: "hypocycloid"
+
+# Half lemniscate size [m]
+half_lemniscate_size:
+  value: 1.0
+
+lemniscate_period:
+  value: 25.0
+
+# Epicycloid parameters
+epicycloid_a:
+  value: 0.5
+
+epicycloid_b:
+  value: 1.0
+
+epicycloid_period:
+  value: 90.0
+
+# Hypocycloid parameters
+hypocycloid_a:
+  value: 1.5
+
+hypocycloid_b:
+  value: 0.5
+
+hypocycloid_period:
+  value: 25.0
