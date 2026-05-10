@@ -243,10 +243,10 @@ def main():
             ####################################
             # Lemniscate trajectory
             # # Half lemniscate size
-            a = 1.0
+            a = parameters["half_lemniscate_size"]
             # no video: 60
             # video: 180
-            lemniscate_period = 25
+            lemniscate_period = parameters["lemniscate_period"]
             omega = 2*math.pi/lemniscate_period
 
             # # x-translation and y-translation
@@ -282,9 +282,9 @@ def main():
         elif trajectory_type == "epicycloid":        
             ####################################
             # Epicycloid
-            a = 0.5
-            b = 1.0
-            curve_period = 90
+            a = parameters["epicycloid_a"]
+            b = parameters["epicycloid_b"]
+            curve_period = parameters["epicycloid_period"]
             omega = 2*math.pi/curve_period
 
             # # x-translation and y-translation
@@ -303,11 +303,11 @@ def main():
         elif trajectory_type == "hypocycloid":
             ####################################
             # Hypocycloid: with the parameters below it will be a tricuspoid
-            a = 1.5
-            b = 0.5
+            a = parameters["hypocycloid_a"]
+            b = parameters["hypocycloid_b"]
             # no video: 90
             # video: 180
-            curve_period = 25
+            curve_period = parameters["hypocycloid_period"]
             omega = 2*math.pi/curve_period
 
             # # x-translation and y-translation
