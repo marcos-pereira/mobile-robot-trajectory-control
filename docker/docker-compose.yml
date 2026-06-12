@@ -1,0 +1,37 @@
+name: mobile-robot-trajectory-control
+
+# CoppeliaSim runs on the host machine.
+# The container uses network_mode: host so the ZMQ client inside
+# the container reaches CoppeliaSim at localhost:23000 (default port).
+#
+# Steps to run:
+#   1. Start CoppeliaSim on the host and open simulation_scenes/pioneer_p3dx.ttt.
+#   2. Build the image (once, or after changing requirements.txt):
+#        docker compose -f docker/docker-compose.yml build
+#   3. Run the controller:
+#        docker compose -f docker/docker-compose.yml up
+#
+# To switch trajectories, edit python_scripts/parameters1.yaml — the directory
+# is mounted as a volume so no rebuild is needed.
+
+services:
+
+  mobile-robot-controller:
+    build:
+      # Build context is the project root so the Dockerfile can access requirements.txt
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: mobile-robot-trajectory-control:latest
+    container_name: mobile-robot-controller
+    # Share host network stack so localhost:23000 reaches the host CoppeliaSim ZMQ server
+    network_mode: host
+    volumes:
+      # Mount source code so edits are picked up without rebuilding
+      - ../python_scripts:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command:
+      - python3
+      - main.py
+      - parameters1.yaml
