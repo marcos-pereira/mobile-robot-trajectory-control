@@ -3,6 +3,22 @@ Trajectory control for a mobile robot in CoppeliaSim.
 
 [![Watch the video](https://img.youtube.com/vi/HflQXuMurJk/maxresdefault.jpg)](https://www.youtube.com/watch?v=HflQXuMurJk)
 
+# How to run with Docker
+
+1. Download [CoppeliaSim](https://www.coppeliarobotics.com/) and run it on the host machine.
+2. Open the simulation scene [pioneer_p3dx.ttt](simulation_scenes/pioneer_p3dx.ttt) from CoppeliaSim.
+3. Build the Docker image (only needed once, or after changing `requirements.txt`):
+```bash
+docker compose -f docker/docker-compose.yml build
+```
+4. Run the controller:
+```bash
+docker compose -f docker/docker-compose.yml up
+```
+The container uses `network_mode: host` so it connects to CoppeliaSim's ZMQ server at `localhost:23000` without any extra configuration.
+
+To switch trajectories, edit [python_scripts/parameters1.yaml](python_scripts/parameters1.yaml) — the directory is mounted as a volume, so no rebuild is needed.
+
 # How to run the code
 1. Download [CoppeliaSim](https://www.coppeliarobotics.com/).
 2. If you are on Linux, go the folder where you extracted then run it:
@@ -47,4 +63,4 @@ sim.startSimulation()
 
 - Kokoska, S. . Fifty Famous Curves, Lots of Calculus Questions, And a Few Answers
 
-- Siciliano, B., Sciavicco, L., Villani, L., & Oriolo, G. (2009). Robotics - Modelling, Planning and Control. 
+- Siciliano, B., Sciavicco, L., Villani, L., & Oriolo, G. (2009). Robotics Modelling, Planning and Control. 
