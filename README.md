@@ -3,6 +3,12 @@ Trajectory control for a mobile robot in CoppeliaSim.
 
 [![Watch the video](https://img.youtube.com/vi/HflQXuMurJk/maxresdefault.jpg)](https://www.youtube.com/watch?v=HflQXuMurJk)
 
+# Example: lemniscate trajectory
+
+The Pioneer P3-DX tracking a lemniscate (figure-eight) reference with the feedback linearization controller. Pick `lemniscate` as the trajectory type in the web UI, or set `trajectory_type` in [parameters1.yaml](python_scripts/parameters1.yaml), to reproduce it.
+
+![Pioneer P3-DX tracking a lemniscate trajectory in CoppeliaSim](images/lemniscate.gif)
+
 # Quickstart: full stack in Docker, scene in the web browser
 
 No local CoppeliaSim install needed: CoppeliaSim runs headless in Docker and streams the scene to the browser.
