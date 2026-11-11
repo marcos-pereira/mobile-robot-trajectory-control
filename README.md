@@ -32,6 +32,7 @@ How it works:
 - The `coppeliasim` container ([Dockerfile.coppeliasim](docker/Dockerfile.coppeliasim)) runs `coppeliaSim.sh -H` (true headless, no X server) with the scene loaded and the Visualization stream add-on auto-started. It stays idle until a client starts the simulation.
 - Pressing Start makes the backend write the form values to `python_scripts/parameters_webvis.yaml` (your `parameters1.yaml` is never modified) and run `main.py parameters_webvis.yaml`, which connects to `coppeliasim:23000`.
 - Pressing Stop sends SIGTERM to `main.py`, which stops the wheels and calls `sim.stopSimulation()`.
+- The image adds a small fix to CoppeliaSim's Three.js viewer ([docker/coppeliasim/](docker/coppeliasim/)). Without it, the coplanar meshes of compound shapes, such as the floor tiles and their black base, z-fight and show black patches on the floor.
 - Since port 23000 is published, you can also run `python3 main.py parameters1.yaml` from the host against the headless simulator.
 - Choose another CoppeliaSim release with the `COPPELIASIM_VERSION` build arg in [docker-compose.yml](docker/docker-compose.yml).
 

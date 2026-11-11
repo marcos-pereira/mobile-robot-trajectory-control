@@ -48,6 +48,12 @@ RUN curl -fsSL "https://downloads.coppeliarobotics.com/${COPPELIASIM_VERSION}/Co
 ENV LD_LIBRARY_PATH=${COPPELIASIM_ROOT_DIR}
 WORKDIR ${COPPELIASIM_ROOT_DIR}
 
+# Viewer fix: coplanar meshes of compound shapes (e.g. the floor tiles) z-fight in
+# the Three.js viewer and show black patches. The Visualization stream add-on loads
+# lua/threejsFrontend-custom.lua, which injects threejsFrontend-fixes.js in the page.
+COPY docker/coppeliasim/threejsFrontend-custom.lua ${COPPELIASIM_ROOT_DIR}/lua/threejsFrontend-custom.lua
+COPY docker/coppeliasim/threejsFrontend-fixes.js ${COPPELIASIM_ROOT_DIR}/threejsFrontend-fixes.js
+
 # 23000: ZeroMQ remote API, 23020: Three.js web viewer (HTTP + WebSocket)
 EXPOSE 23000 23020
 
