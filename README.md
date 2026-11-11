@@ -3,19 +3,52 @@ Trajectory control for a mobile robot in CoppeliaSim.
 
 [![Watch the video](https://img.youtube.com/vi/HflQXuMurJk/maxresdefault.jpg)](https://www.youtube.com/watch?v=HflQXuMurJk)
 
-# How to run with Docker
+# Quickstart: full stack in Docker, scene in the web browser
+
+No local CoppeliaSim install needed: CoppeliaSim runs headless in Docker and streams the scene to the browser.
+
+```bash
+# Build once (downloads CoppeliaSim 4.10.0, ~260 MB)
+docker compose -f docker/docker-compose.yml --profile webvis build
+
+# Start headless CoppeliaSim + the web UI
+docker compose -f docker/docker-compose.yml --profile webvis up
+```
+
+Then open **http://localhost:8000**:
+1. Choose the trajectory and set the parameters (defaults come from [parameters1.yaml](python_scripts/parameters1.yaml)).
+2. Press **▶ Start**. The robot aligns with the start point (yellow dot), drives to it, then tracks the trajectory.
+3. Press **■ Stop** at any time. The robot and the simulation stop, and the scene resets so you can run again.
+
+Stop everything with `docker compose -f docker/docker-compose.yml --profile webvis down`.
+
+| Service | URL / port | What it is |
+|---|---|---|
+| `webvis` | http://localhost:8000 | Parameter form, Start/Stop, trajectory preview, controller log ([backend](webvis/backend/server.py), [frontend](webvis/frontend/)) |
+| `coppeliasim` | http://localhost:23020 | CoppeliaSim's Three.js "Visualization stream" (embedded in the UI) |
+| `coppeliasim` | `localhost:23000` | ZeroMQ remote API used by [main.py](python_scripts/main.py) |
+
+How it works:
+- The `coppeliasim` container ([Dockerfile.coppeliasim](docker/Dockerfile.coppeliasim)) runs `coppeliaSim.sh -H` (true headless, no X server) with the scene loaded and the Visualization stream add-on auto-started. It stays idle until a client starts the simulation.
+- Pressing Start makes the backend write the form values to `python_scripts/parameters_webvis.yaml` (your `parameters1.yaml` is never modified) and run `main.py parameters_webvis.yaml`, which connects to `coppeliasim:23000`.
+- Pressing Stop sends SIGTERM to `main.py`, which stops the wheels and calls `sim.stopSimulation()`.
+- The image adds a small fix to CoppeliaSim's Three.js viewer ([docker/coppeliasim/](docker/coppeliasim/)). Without it, the coplanar meshes of compound shapes, such as the floor tiles and their black base, z-fight and show black patches on the floor.
+- Since port 23000 is published, you can also run `python3 main.py parameters1.yaml` from the host against the headless simulator.
+- Choose another CoppeliaSim release with the `COPPELIASIM_VERSION` build arg in [docker-compose.yml](docker/docker-compose.yml).
+
+# How to run with Docker (CoppeliaSim GUI on the host)
 
 1. Download [CoppeliaSim](https://www.coppeliarobotics.com/) and run it on the host machine.
 2. Open the simulation scene [pioneer_p3dx.ttt](simulation_scenes/pioneer_p3dx.ttt) from CoppeliaSim.
 3. Build the Docker image (only needed once, or after changing `requirements.txt`):
 ```bash
-docker compose -f docker/docker-compose.yml build
+docker compose -f docker/docker-compose.yml --profile host build
 ```
 4. Run the controller:
 ```bash
-docker compose -f docker/docker-compose.yml up
+docker compose -f docker/docker-compose.yml --profile host up
 ```
-The container uses `network_mode: host` so it connects to CoppeliaSim's ZMQ server at `localhost:23000` without any extra configuration.
+The container uses `network_mode: host` so it connects to CoppeliaSim's ZMQ server at `localhost:23000` without any extra configuration. The ZMQ address can be changed with the `COPPELIASIM_HOST` and `COPPELIASIM_PORT` environment variables.
 
 To switch trajectories, edit [python_scripts/parameters1.yaml](python_scripts/parameters1.yaml) — the directory is mounted as a volume, so no rebuild is needed.
 
