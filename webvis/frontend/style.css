@@ -1,0 +1,232 @@
+/*
+  This code is distributed WITHOUT ANY WARRANTY, without the implied
+  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+  See the GNU Lesser General Public License for more details.
+
+  Contributors:
+  marcos-pereira (https://github.com/marcos-pereira)
+*/
+
+:root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #21262d;
+    --input-border: #30363d;
+    --text: #c9d1d9;
+    --text-strong: #f0f6fc;
+    --muted: #8b949e;
+    --accent: #2f81f7;
+    --accent-hover: #1f6feb;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --curve: #58a6ff;
+    --start: #ffcf58;
+    --marker: #3fb950;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+#sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+#sidebar h1 { font-size: 1.05rem; color: var(--text-strong); }
+.subtitle { font-size: 0.72rem; color: var(--muted); margin-top: -8px; }
+
+.group {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+.group[hidden] { display: none; }
+.group-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+
+label { font-size: 0.7rem; color: var(--muted); }
+label .unit { color: #6e7681; }
+
+select, input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    width: 100%;
+    outline: none;
+    font-variant-numeric: tabular-nums;
+}
+select:focus, input[type="number"]:focus { border-color: var(--accent); }
+input:disabled, select:disabled { opacity: 0.55; }
+input.invalid { border-color: var(--danger); }
+
+.button-row { display: flex; gap: 8px; }
+button {
+    flex: 1;
+    border: none;
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.primary { background: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+button.danger { background: #da3633; color: #fff; }
+button.danger:hover:not(:disabled) { background: #b62324; }
+button.secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--input-border);
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+button.secondary:hover:not(:disabled) { border-color: var(--muted); }
+
+.link-btn {
+    flex: none;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0 4px;
+    cursor: pointer;
+    text-decoration: none;
+}
+.link-btn:hover { color: var(--text-strong); }
+
+/* ── Status card ───────────────────────────────────────── */
+#status-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.status-line { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-strong); }
+#status-elapsed { margin-left: auto; font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.dot.running { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.dot.busy { background: var(--warn); }
+.dot.failed { background: var(--danger); }
+#progress-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+#progress-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+#status-detail { font-size: 0.72rem; color: var(--muted); line-height: 1.5; word-break: break-word; }
+
+/* ── Main area ─────────────────────────────────────────── */
+#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 12px;
+    gap: 12px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-strong);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+}
+.panel-actions { display: flex; gap: 8px; }
+.muted { color: var(--muted); font-weight: 400; }
+
+#viewer-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+#viewer-frame-wrap { flex: 1; position: relative; background: #000; }
+#viewer-frame { width: 100%; height: 100%; border: 0; display: block; }
+#viewer-offline {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--bg);
+    font-size: 0.9rem;
+}
+#viewer-offline[hidden] { display: none; }
+
+#bottom-panels {
+    height: 260px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 12px;
+}
+.panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 0;
+}
+#preview-canvas { flex: 1; min-height: 0; background: var(--bg); }
+#preview-canvas canvas { display: block; }
+
+#log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 10px;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg);
+}
+
+@media (max-width: 900px) {
+    body { flex-direction: column; height: auto; overflow: auto; }
+    #sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); }
+    #viewer-panel { min-height: 60vh; }
+    #bottom-panels { grid-template-columns: 1fr; height: auto; }
+    #preview-canvas, #log { height: 240px; flex: none; }
+}

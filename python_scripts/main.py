@@ -11,12 +11,51 @@
 #!/usr/bin/env python
 
 import numpy as np
-import math 
+import math
+import os
+import signal
 import sys
 
 from coppeliasim_zmqremoteapi_client import *
 
 from YamlDatafile import YamlDatafile
+
+# Address of the CoppeliaSim ZMQ remote API server. Defaults to the local host;
+# the Docker webvis profile points it to the coppeliasim container instead.
+coppeliasim_host = os.environ.get("COPPELIASIM_HOST", "localhost")
+coppeliasim_port = int(os.environ.get("COPPELIASIM_PORT", "23000"))
+
+
+def raise_keyboard_interrupt(signal_number, frame):
+    """Turn SIGTERM (sent by docker stop or the web Stop button) into a
+    KeyboardInterrupt so the simulation cleanup in main() always runs."""
+    raise KeyboardInterrupt
+
+
+def stop_robot_and_simulation(client, sim, right_motor_handle, left_motor_handle):
+    """Stop the wheels, release stepping mode and stop the simulation.
+
+    If the interrupted client is stuck in the middle of a request, a fresh
+    client is used so the simulation is still stopped.
+
+    Args:
+        client (RemoteAPIClient): the client that ran the control loop.
+        sim (_type_): the sim object of that client.
+        right_motor_handle (int): the right motor handle, or None if not fetched yet.
+        left_motor_handle (int): the left motor handle, or None if not fetched yet.
+    """
+    try:
+        if right_motor_handle is not None:
+            sim.setJointTargetVelocity(right_motor_handle, 0.0)
+            sim.setJointTargetVelocity(left_motor_handle, 0.0)
+        client.setStepping(False)
+        sim.stopSimulation()
+    except Exception:
+        # Expected after an interrupt: the control client's socket was left mid-request
+        print("ℹ️ Control client was interrupted mid-request, stopping with a new client...")
+        cleanup_client = RemoteAPIClient(host=coppeliasim_host, port=coppeliasim_port)
+        cleanup_client.require('sim').stopSimulation()
+    print("🛑 Simulation stopped.")
 
 def align_with_goal(xd, yd, xm, ym, theta_m, desired_error):
     """Return the twist to apply to robot such that it aligns with the 
@@ -323,106 +362,115 @@ def main():
             xdot_trajectory = np.append(xdot_trajectory,x_dot)
             ydot_trajectory = np.append(ydot_trajectory,y_dot)
         
-    client = RemoteAPIClient()
-    sim = client.getObject('sim')    
-    client.setStepping(True)
-    
-    sim.startSimulation()
-    
-    desired_alignment_error = parameters["desired_alignment_error"]
-    
-    robot_handle = sim.getObject("/Pioneer_p3dx_connection4")
+    # SIGTERM (docker stop, web Stop button) runs the same cleanup as Ctrl+C
+    signal.signal(signal.SIGTERM, raise_keyboard_interrupt)
+
+    print(f"🔌 Connecting to CoppeliaSim at {coppeliasim_host}:{coppeliasim_port}...")
+    client = RemoteAPIClient(host=coppeliasim_host, port=coppeliasim_port)
+    sim = client.require('sim')
+
+    # Motor handles are fetched before starting so the cleanup can always stop the wheels
     right_motor_handle = sim.getObject("/Pioneer_p3dx_rightMotor")
     left_motor_handle = sim.getObject("/Pioneer_p3dx_leftMotor")
-    
-    # Align robot with trajectory initial position
-    while True:
-        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
-        robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
-        
-        (twist_to_align, aligned) = align_with_goal(
-            x_trajectory[0], 
-            y_trajectory[0], 
-            robot_position[0], 
-            robot_position[1], 
-            robot_orientation[2], 
-            desired_alignment_error)
-        
-        wheel_velocities = twist_to_wheel_velocities(twist_to_align)
-    
-        sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
-        sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])
-        
-        client.step()
-        
-        if aligned is True:
-            break
-        
-    desired_euclidean_error = parameters["desired_euclidean_error"]
-    
-    # Go to trajectory inital position
-    while True:
-        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
-        robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
-        
-        current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
-        goal_configuration = np.array([x_trajectory[0], y_trajectory[0], 0])
-        
-        angle_to_goal = goal_angle(current_configuration, goal_configuration)   
-        
-        dot_x = math.cos(angle_to_goal)
-        dot_y = math.sin(angle_to_goal)
-        wheel_velocities = get_wheel_velocities(robot_orientation[2], dot_x, dot_y)  
-        
-        sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
-        sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])     
-        
-        print("Eucliden distance to goal")
-        print(euclidean_distance(current_configuration, goal_configuration))
-        
-        client.step()
 
-        ## Check if desired euclidean distance was reached
-        if euclidean_distance(current_configuration, goal_configuration) < desired_euclidean_error:
-            print("Initial position reached.")
-            
-            sim.setJointTargetVelocity(right_motor_handle, 0.0)
-            sim.setJointTargetVelocity(left_motor_handle, 0.0)   
-            
-            break
-        
-    control_gain = parameters["control_gain"]
+    client.setStepping(True)
+    sim.startSimulation()
+    print("▶️ Simulation started.")
+
+    try:
+        desired_alignment_error = parameters["desired_alignment_error"]
+
+        robot_handle = sim.getObject("/Pioneer_p3dx_connection4")
     
-    trajectory_reference_handle = sim.getObject("/Sphere")
+        # Align robot with trajectory initial position
+        while True:
+            robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
+            robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
+        
+            (twist_to_align, aligned) = align_with_goal(
+                x_trajectory[0], 
+                y_trajectory[0], 
+                robot_position[0], 
+                robot_position[1], 
+                robot_orientation[2], 
+                desired_alignment_error)
+        
+            wheel_velocities = twist_to_wheel_velocities(twist_to_align)
     
-    # Track the trajectory
-    for i in range(len(x_trajectory)):
-        robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
-        robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
+            sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
+            sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])
         
-        current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
-        goal_configuration = np.array([x_trajectory[i], y_trajectory[i], 0])
+            client.step()
         
-        twist = twist_feedback_linearization(
-            current_configuration[0], current_configuration[1], current_configuration[2],
-            x_trajectory[i], y_trajectory[i],
-            xdot_trajectory[i], ydot_trajectory[i],
-            control_gain)
+            if aligned is True:
+                break
         
-        wheel_velocities = twist_to_wheel_velocities(twist)
+        desired_euclidean_error = parameters["desired_euclidean_error"]
+    
+        # Go to trajectory inital position
+        while True:
+            robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
+            robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
         
-        sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
-        sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])    
-        sim.setObjectPosition(trajectory_reference_handle, sim.handle_world, (x_trajectory[i], y_trajectory[i], robot_position[2]))
+            current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
+            goal_configuration = np.array([x_trajectory[0], y_trajectory[0], 0])
         
-        print(f"Trajectory step: {i}, total: {len(x_trajectory)}")
+            angle_to_goal = goal_angle(current_configuration, goal_configuration)   
         
-        client.step() 
+            dot_x = math.cos(angle_to_goal)
+            dot_y = math.sin(angle_to_goal)
+            wheel_velocities = get_wheel_velocities(robot_orientation[2], dot_x, dot_y)  
+        
+            sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
+            sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])     
+        
+            print("Eucliden distance to goal")
+            print(euclidean_distance(current_configuration, goal_configuration))
+        
+            client.step()
+
+            ## Check if desired euclidean distance was reached
+            if euclidean_distance(current_configuration, goal_configuration) < desired_euclidean_error:
+                print("Initial position reached.")
             
-    sim.setJointTargetVelocity(right_motor_handle, 0.0)
-    sim.setJointTargetVelocity(left_motor_handle, 0.0) 
+                sim.setJointTargetVelocity(right_motor_handle, 0.0)
+                sim.setJointTargetVelocity(left_motor_handle, 0.0)   
+            
+                break
+        
+        control_gain = parameters["control_gain"]
     
-    sim.stopSimulation()
+        trajectory_reference_handle = sim.getObject("/Sphere")
+    
+        # Track the trajectory
+        for i in range(len(x_trajectory)):
+            robot_position = sim.getObjectPosition(robot_handle, sim.handle_world)
+            robot_orientation = sim.getObjectOrientation(robot_handle, sim.handle_world)
+        
+            current_configuration = np.array([robot_position[0], robot_position[1], robot_orientation[2]])
+            goal_configuration = np.array([x_trajectory[i], y_trajectory[i], 0])
+        
+            twist = twist_feedback_linearization(
+                current_configuration[0], current_configuration[1], current_configuration[2],
+                x_trajectory[i], y_trajectory[i],
+                xdot_trajectory[i], ydot_trajectory[i],
+                control_gain)
+        
+            wheel_velocities = twist_to_wheel_velocities(twist)
+        
+            sim.setJointTargetVelocity(right_motor_handle, wheel_velocities[0][0])
+            sim.setJointTargetVelocity(left_motor_handle, wheel_velocities[1][0])    
+            sim.setObjectPosition(trajectory_reference_handle, sim.handle_world, (x_trajectory[i], y_trajectory[i], robot_position[2]))
+        
+            print(f"Trajectory step: {i}, total: {len(x_trajectory)}")
+        
+            client.step() 
+            
+        print("✅ Trajectory finished.")
+    except KeyboardInterrupt:
+        print("⚠️ Interrupted, stopping the robot...")
+    finally:
+        stop_robot_and_simulation(client, sim, right_motor_handle, left_motor_handle)
         
 
 if __name__ == '__main__':

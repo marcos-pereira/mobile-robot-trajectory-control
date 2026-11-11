@@ -1,22 +1,37 @@
 name: mobile-robot-trajectory-control
 
-# CoppeliaSim runs on the host machine.
-# The container uses network_mode: host so the ZMQ client inside
-# the container reaches CoppeliaSim at localhost:23000 (default port).
+# Two ways to run the controller (python_scripts/main.py):
 #
-# Steps to run:
-#   1. Start CoppeliaSim on the host and open simulation_scenes/pioneer_p3dx.ttt.
-#   2. Build the image (once, or after changing requirements.txt):
-#        docker compose -f docker/docker-compose.yml build
-#   3. Run the controller:
-#        docker compose -f docker/docker-compose.yml up
+# ── Profile "host": CoppeliaSim with GUI on the host machine ───────────────────
+#   The container uses network_mode: host so the ZMQ client inside the container
+#   reaches CoppeliaSim at localhost:23000 (default port).
+#     1. Start CoppeliaSim on the host and open simulation_scenes/pioneer_p3dx.ttt.
+#     2. Build the image (once, or after changing requirements.txt):
+#          docker compose -f docker/docker-compose.yml --profile host build
+#     3. Run the controller:
+#          docker compose -f docker/docker-compose.yml --profile host up
+#   To switch trajectories, edit python_scripts/parameters1.yaml — the directory
+#   is mounted as a volume so no rebuild is needed.
 #
-# To switch trajectories, edit python_scripts/parameters1.yaml — the directory
-# is mounted as a volume so no rebuild is needed.
+# ── Profile "webvis": headless CoppeliaSim in Docker + web UI ───────────────────
+#   CoppeliaSim runs headless (-H) in its own container with the scene loaded and
+#   streams the scene to the browser through its Three.js "Visualization stream".
+#   A web UI sets the parameters and starts/stops main.py, which drives the
+#   simulation over the ZMQ remote API.
+#     1. Build (downloads CoppeliaSim once, ~260 MB):
+#          docker compose -f docker/docker-compose.yml --profile webvis build
+#     2. Run:
+#          docker compose -f docker/docker-compose.yml --profile webvis up
+#     3. Open http://localhost:8000 (UI) — the CoppeliaSim viewer alone is at
+#        http://localhost:23020
+#   The ZMQ API is also published on localhost:23000, so main.py can still be
+#   run from the host against the headless simulator.
 
 services:
 
+  # ── Profile "host": controller for CoppeliaSim running on the host ──────
   mobile-robot-controller:
+    profiles: [host]
     build:
       # Build context is the project root so the Dockerfile can access requirements.txt
       context: ..
@@ -35,3 +50,63 @@ services:
       - python3
       - main.py
       - parameters1.yaml
+
+  # ── Profile "webvis": headless CoppeliaSim ──────────────────────────────
+  coppeliasim:
+    profiles: [webvis]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.coppeliasim
+      args:
+        COPPELIASIM_VERSION: V4_10_0_rev0
+        COPPELIASIM_UBUNTU: Ubuntu24_04
+    image: mobile-robot-coppeliasim:4.10.0
+    container_name: coppeliasim-headless
+    ports:
+      # ZeroMQ remote API (main.py)
+      - "23000:23000"
+      # Three.js web viewer: HTTP page + WebSocket event stream
+      - "23020:23020"
+    volumes:
+      # Scenes are read-only; the scene to load is the command argument
+      - ../simulation_scenes:/scenes:ro
+    command: ["/scenes/pioneer_p3dx.ttt"]
+    # CoppeliaSim's Commander add-on reads stdin and quits CoppeliaSim on EOF,
+    # so stdin must stay open for the headless simulator to keep running
+    stdin_open: true
+    tty: true
+    # Forward docker stop's SIGTERM to CoppeliaSim (coppeliaSim.sh is a bash wrapper)
+    init: true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:23020/"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+
+  # ── Profile "webvis": web UI + controller runner ────────────────────────
+  webvis:
+    profiles: [webvis]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.webvis
+    image: mobile-robot-trajectory-control-webvis:latest
+    container_name: mobile-robot-webvis
+    depends_on:
+      coppeliasim:
+        condition: service_healthy
+    environment:
+      # main.py connects to the ZMQ remote API of the coppeliasim service
+      COPPELIASIM_HOST: coppeliasim
+      COPPELIASIM_PORT: "23000"
+      # Port of the CoppeliaSim viewer as published to the browser's host
+      VIEWER_PORT: "23020"
+    volumes:
+      # Controller code and parameter files (parameters_webvis.yaml is written here)
+      - ../python_scripts:/workspace/python_scripts
+      # Backend and frontend (restart the service after editing the backend)
+      - ../webvis:/workspace/webvis
+    ports:
+      - "8000:8000"
+    # Leave time for main.py to stop the robot and the simulation on shutdown
+    stop_grace_period: 20s

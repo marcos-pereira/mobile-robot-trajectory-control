@@ -1,0 +1,59 @@
+#   This code is distributed WITHOUT ANY WARRANTY, without the implied
+#   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU Lesser General Public License for more details.
+#
+#   The license is distributed along with this repository or you can check
+#   <http://www.gnu.org/licenses/> for more details.
+#
+# Contributors:
+# marcos-pereira (https://github.com/marcos-pereira)
+
+# Headless CoppeliaSim (no Qt window, no X server) that:
+#   - serves the ZeroMQ remote API on port 23000 (used by python_scripts/main.py)
+#   - serves the Three.js "Visualization stream" web viewer + WebSocket on port 23020
+FROM ubuntu:24.04
+
+LABEL maintainer="marcos-pereira"
+LABEL description="Headless CoppeliaSim with ZMQ remote API and Three.js browser visualization"
+
+# The CoppeliaSim release to download. Defaults to the latest release at the time of writing.
+# Override with: docker compose build --build-arg COPPELIASIM_VERSION=V4_10_0_rev0 coppeliasim
+ARG COPPELIASIM_VERSION=V4_10_0_rev0
+ARG COPPELIASIM_UBUNTU=Ubuntu24_04
+
+# Runtime libraries needed by the CoppeliaSim binary and its bundled Qt/plugins,
+# even in -H mode where no window is ever created
+RUN apt-get update -q && \
+    export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl xz-utils \
+        libgl1 libegl1 libglu1-mesa libopengl0 \
+        libx11-6 libx11-xcb1 libxcb1 libxau6 libxext6 libxrender1 libxi6 \
+        libxkbcommon0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+        libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+        libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0 \
+        libdbus-1-3 libfontconfig1 libfreetype6 libglib2.0-0t64 \
+        libraw1394-11 libmpfr6 libusb-1.0-0 libgomp1 \
+        python3 python3-pip python3-zmq python3-cbor2 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Download and extract CoppeliaSim Edu (cached as its own layer)
+ENV COPPELIASIM_ROOT_DIR=/opt/CoppeliaSim
+RUN curl -fsSL "https://downloads.coppeliarobotics.com/${COPPELIASIM_VERSION}/CoppeliaSim_Edu_${COPPELIASIM_VERSION}_${COPPELIASIM_UBUNTU}.tar.xz" \
+        -o /tmp/coppeliasim.tar.xz && \
+    mkdir -p ${COPPELIASIM_ROOT_DIR} && \
+    tar -xJf /tmp/coppeliasim.tar.xz -C ${COPPELIASIM_ROOT_DIR} --strip-components=1 && \
+    rm /tmp/coppeliasim.tar.xz
+
+ENV LD_LIBRARY_PATH=${COPPELIASIM_ROOT_DIR}
+WORKDIR ${COPPELIASIM_ROOT_DIR}
+
+# 23000: ZeroMQ remote API, 23020: Three.js web viewer (HTTP + WebSocket)
+EXPOSE 23000 23020
+
+# -H                                   true headless: no Qt GUI, no X server needed
+# -GvisualizationStream.autoStart=true load the "Visualization stream" add-on at boot
+# The scene file is passed as CMD, so CoppeliaSim boots idle with the scene loaded
+# and main.py decides when the simulation starts and stops.
+ENTRYPOINT ["./coppeliaSim.sh", "-H", "-GvisualizationStream.autoStart=true"]
+CMD ["/scenes/pioneer_p3dx.ttt"]
